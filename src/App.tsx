@@ -1,4 +1,6 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react'
+import { useAuth } from './useAuth'
 import './App.css'
 
 interface Note {
@@ -10,31 +12,41 @@ interface Note {
 }
 
 function App() {
-  // Load notes from localStorage on initialization
-  const loadNotesFromStorage = () => {
-    const savedNotes = localStorage.getItem('drafty-notes')
+  const { user, logout } = useAuth()
+  const [notes, setNotes] = useState<Note[]>([])
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+
+  // Load notes from localStorage when user changes
+  useEffect(() => {
+    if (!user) {
+      setNotes([])
+      setSelectedNoteId(null)
+      return
+    }
+
+    const savedNotes = localStorage.getItem(`drafty-notes-${user.uid}`)
     if (savedNotes) {
       try {
-        return JSON.parse(savedNotes)
+        const parsedNotes = JSON.parse(savedNotes)
+        setNotes(parsedNotes)
+        setSelectedNoteId(parsedNotes.length > 0 ? parsedNotes[0].id : null)
       } catch (e) {
         console.error('Failed to load notes:', e)
+        setNotes([])
+        setSelectedNoteId(null)
       }
+    } else {
+      setNotes([])
+      setSelectedNoteId(null)
     }
-    return []
-  }
+  }, [user])
 
-  const initialNotes = loadNotesFromStorage()
-  const [notes, setNotes] = useState<Note[]>(initialNotes)
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(
-    initialNotes.length > 0 ? initialNotes[0].id : null
-  )
-
-  // Save notes to localStorage whenever they change
+  // Save notes to localStorage whenever they change (user-specific)
   useEffect(() => {
-    if (notes.length > 0) {
-      localStorage.setItem('drafty-notes', JSON.stringify(notes))
+    if (user && notes.length > 0) {
+      localStorage.setItem(`drafty-notes-${user.uid}`, JSON.stringify(notes))
     }
-  }, [notes])
+  }, [notes, user])
 
   const createNewNote = () => {
     const newNote: Note = {
@@ -114,6 +126,14 @@ function App() {
               <div className="note-item-date">{formatDate(note.updatedAt)}</div>
             </div>
           ))}
+        </div>
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <span className="user-email">{user?.email}</span>
+          </div>
+          <button className="logout-btn" onClick={logout}>
+            🚪 Sign Out
+          </button>
         </div>
       </aside>
 
