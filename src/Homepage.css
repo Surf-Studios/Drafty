@@ -182,8 +182,13 @@
 }
 
 .feature-icon {
-  font-size: 3rem;
   margin-bottom: 1rem;
+  color: var(--accent-color);
+}
+
+.feature-icon svg {
+  width: 48px;
+  height: 48px;
 }
 
 .feature-card h3 {
@@ -196,46 +201,6 @@
 .feature-card p {
   color: var(--text-secondary);
   line-height: 1.6;
-}
-
-.security {
-  padding: 6rem 4rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.security h2 {
-  font-size: 2.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 3rem;
-  text-align: center;
-}
-
-.security-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.security-item {
-  background-color: var(--bg-secondary);
-  padding: 2rem;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-}
-
-.security-item h3 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 1rem;
-}
-
-.security-item p {
-  color: var(--text-secondary);
-  line-height: 1.6;
-  font-size: 1.05rem;
 }
 
 .about {
