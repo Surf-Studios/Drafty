@@ -32,6 +32,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Check for demo mode in localStorage
+    const demoMode = localStorage.getItem('drafty-demo-mode')
+    if (demoMode === 'true') {
+      const mockUser = {
+        uid: 'demo-user',
+        email: 'demo@example.com',
+      } as User
+      setUser(mockUser)
+      setLoading(false)
+      return
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user)
       setLoading(false)
@@ -41,10 +53,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   const signup = async (email: string, password: string) => {
+    // Check for demo mode
+    if (email === 'demo@example.com' && password === 'demo123') {
+      localStorage.setItem('drafty-demo-mode', 'true')
+      const mockUser = {
+        uid: 'demo-user',
+        email: 'demo@example.com',
+      } as User
+      setUser(mockUser)
+      return
+    }
     await createUserWithEmailAndPassword(auth, email, password)
   }
 
   const login = async (email: string, password: string) => {
+    // Check for demo mode
+    if (email === 'demo@example.com' && password === 'demo123') {
+      localStorage.setItem('drafty-demo-mode', 'true')
+      const mockUser = {
+        uid: 'demo-user',
+        email: 'demo@example.com',
+      } as User
+      setUser(mockUser)
+      return
+    }
     await signInWithEmailAndPassword(auth, email, password)
   }
 
@@ -54,6 +86,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const logout = async () => {
+    localStorage.removeItem('drafty-demo-mode')
     await signOut(auth)
   }
 
