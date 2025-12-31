@@ -117,9 +117,14 @@ function App() {
     setMenuOpen(false)
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setMenuOpen(false)
-    logout()
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Still close menu even if logout fails
+    }
   }
 
   const renderModeContent = () => {
