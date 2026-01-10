@@ -118,10 +118,6 @@
   font-size: 0.9rem;
 }
 
-.settingspage-controls select {
-  padding: 0.45rem 0.6rem;
-}
-
 .files-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

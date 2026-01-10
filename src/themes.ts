@@ -118,6 +118,8 @@ export const applyTheme = (themeName: string, mode: 'dark' | 'light' = 'dark', a
   const theme = themes[themeName] || themes.mocha
   const root = document.documentElement
 
+  root.setAttribute('data-theme-mode', mode)
+
   // Determine base palettes for light/dark
   const isLight = mode === 'light'
   const base = isLight ? invertColor(theme.colors.base, '#ffffff') : theme.colors.base
@@ -126,7 +128,10 @@ export const applyTheme = (themeName: string, mode: 'dark' | 'light' = 'dark', a
   const text = isLight ? '#111' : theme.colors.text
   const subtext = isLight ? '#444' : theme.colors.subtext
 
-  const accent = accentOverride || theme.colors.accent
+  const accentRaw = accentOverride || theme.colors.accent
+  const accent = isLight ? ensureReadableAccentOnLight(accentRaw) : accentRaw
+  const accentHover = isLight ? darken(accent, 0.12) : theme.colors.accentHover
+  const accentLight = isLight ? tintTowards(accent, '#ffffff', 0.86) : theme.colors.accentLight
 
   // Apply colors
   root.style.setProperty('--bg-primary', base)
@@ -137,13 +142,79 @@ export const applyTheme = (themeName: string, mode: 'dark' | 'light' = 'dark', a
   root.style.setProperty('--text-tertiary', subtext)
   root.style.setProperty('--border-color', overlay)
   root.style.setProperty('--accent-color', accent)
-  root.style.setProperty('--accent-hover', theme.colors.accentHover)
-  root.style.setProperty('--accent-light', theme.colors.accentLight)
+  root.style.setProperty('--accent-hover', accentHover)
+  root.style.setProperty('--accent-light', accentLight)
   
   // Apply font properties
   root.style.setProperty('--font-family', theme.font.family)
   root.style.setProperty('--font-size', theme.font.size)
   root.style.setProperty('--line-height', theme.font.lineHeight)
+}
+
+function ensureReadableAccentOnLight(hex: string) {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  const l = relativeLuminance(rgb)
+  if (l <= 0.62) return hex
+  // Darken very light accent colors so icons/borders remain visible in light mode.
+  const strength = l > 0.78 ? 0.42 : 0.28
+  return darken(hex, strength)
+}
+
+function tintTowards(hex: string, targetHex: string, targetWeight: number) {
+  const a = hexToRgb(hex)
+  const b = hexToRgb(targetHex)
+  if (!a || !b) return hex
+  const w = clamp01(targetWeight)
+  return rgbToHex(
+    a.r * (1 - w) + b.r * w,
+    a.g * (1 - w) + b.g * w,
+    a.b * (1 - w) + b.b * w,
+  )
+}
+
+function darken(hex: string, amount: number) {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  const a = clamp01(amount)
+  return rgbToHex(rgb.r * (1 - a), rgb.g * (1 - a), rgb.b * (1 - a))
+}
+
+function clamp01(n: number) {
+  return Math.max(0, Math.min(1, n))
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const h = hex.trim().replace('#', '')
+  if (h.length !== 6) return null
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null
+  return { r, g, b }
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  const rr = clampByte(r).toString(16).padStart(2, '0')
+  const gg = clampByte(g).toString(16).padStart(2, '0')
+  const bb = clampByte(b).toString(16).padStart(2, '0')
+  return `#${rr}${gg}${bb}`
+}
+
+function clampByte(n: number) {
+  return Math.max(0, Math.min(255, Math.round(n)))
+}
+
+// WCAG relative luminance (sRGB)
+function relativeLuminance({ r, g, b }: { r: number; g: number; b: number }) {
+  const rs = srgbToLinear(r / 255)
+  const gs = srgbToLinear(g / 255)
+  const bs = srgbToLinear(b / 255)
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
+}
+
+function srgbToLinear(c: number) {
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
 }
 
 // Very small helper to blend/invert a color for a basic light mode conversion

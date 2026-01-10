@@ -2,12 +2,67 @@ import { useState } from 'react'
 import { DashboardIcon, NotebookIcon, FlashcardsIcon, WhiteboardIcon, StudyIcon, BookIcon } from './icons'
 import './Dashboard.css'
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const h = hex.trim().replace('#', '')
+  if (h.length !== 6) return null
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null
+  return { r, g, b }
+}
+
+function clamp01(n: number) {
+  return Math.max(0, Math.min(1, n))
+}
+
+function clampByte(n: number) {
+  return Math.max(0, Math.min(255, Math.round(n)))
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  const rr = clampByte(r).toString(16).padStart(2, '0')
+  const gg = clampByte(g).toString(16).padStart(2, '0')
+  const bb = clampByte(b).toString(16).padStart(2, '0')
+  return `#${rr}${gg}${bb}`
+}
+
+function darken(hex: string, amount: number) {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  const a = clamp01(amount)
+  return rgbToHex(rgb.r * (1 - a), rgb.g * (1 - a), rgb.b * (1 - a))
+}
+
+function srgbToLinear(c: number) {
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+}
+
+function relativeLuminance({ r, g, b }: { r: number; g: number; b: number }) {
+  const rs = srgbToLinear(r / 255)
+  const gs = srgbToLinear(g / 255)
+  const bs = srgbToLinear(b / 255)
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
+}
+
 interface DashboardProps {
   onModeSelect: (mode: string) => void
 }
 
 export function Dashboard({ onModeSelect }: DashboardProps) {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
+
+  const themeMode = (localStorage.getItem('drafty-theme-mode') as 'dark' | 'light' | null) || 'dark'
+
+  const ensureReadableCardColor = (hex: string) => {
+    if (themeMode !== 'light') return hex
+    const rgb = hexToRgb(hex)
+    if (!rgb) return hex
+    const l = relativeLuminance(rgb)
+    if (l <= 0.62) return hex
+    const strength = l > 0.78 ? 0.42 : 0.28
+    return darken(hex, strength)
+  }
 
   const modes = [
     {
@@ -65,7 +120,7 @@ export function Dashboard({ onModeSelect }: DashboardProps) {
               onClick={() => onModeSelect(mode.id)}
               onMouseEnter={() => setHoveredCard(mode.id)}
               onMouseLeave={() => setHoveredCard(null)}
-              style={{ '--card-color': mode.color } as React.CSSProperties}
+              style={{ '--card-color': ensureReadableCardColor(mode.color) } as React.CSSProperties}
             >
               <div className="card-icon">
                 <Icon size={48} />

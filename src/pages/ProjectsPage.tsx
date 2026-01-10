@@ -1,6 +1,7 @@
 import { EditIcon, PencilIcon } from '../icons'
 import type { Book, Project } from '../models'
 import type { ChangeEvent } from 'react'
+import { useMemo, useState } from 'react'
 
 export function ProjectsPage({
   books,
@@ -17,6 +18,8 @@ export function ProjectsPage({
   setSelectedProjectId: (id: string | null) => void
   openNotebook: (bookId: string) => void
 }) {
+  const [bookToAddId, setBookToAddId] = useState<string>('')
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
@@ -30,6 +33,18 @@ export function ProjectsPage({
   }
 
   const project = selectedProjectId ? projects.find((p) => p.id === selectedProjectId) || null : null
+
+  const projectBooks = useMemo(() => {
+    if (!project) return []
+    const byId = new Map(books.map((b) => [b.id, b]))
+    return project.bookIds.map((id) => byId.get(id)).filter((b): b is Book => Boolean(b))
+  }, [books, project])
+
+  const addableBooks = useMemo(() => {
+    if (!project) return []
+    const inProject = new Set(project.bookIds)
+    return books.filter((b) => !inProject.has(b.id))
+  }, [books, project])
 
   return (
     <div className="projects-layout">
@@ -82,30 +97,68 @@ export function ProjectsPage({
 
             <div className="projects-section">
               <h3>Notebooks in this project</h3>
+
+              {books.length === 0 ? (
+                <p className="projects-muted">No notebooks yet. Create one in Notebook mode.</p>
+              ) : (
+                <div className="projects-add">
+                  <label className="projects-add-label">
+                    Add notebook
+                    <select
+                      value={bookToAddId}
+                      onChange={(e: ChangeEvent<HTMLSelectElement>) => setBookToAddId(e.target.value)}
+                      disabled={addableBooks.length === 0}
+                    >
+                      <option value="">{addableBooks.length === 0 ? 'No notebooks available' : 'Select a notebook…'}</option>
+                      {addableBooks.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name || 'Untitled Notebook'}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={!bookToAddId}
+                    onClick={() => {
+                      if (!bookToAddId) return
+                      const now = new Date().toISOString()
+                      const nextIds = [bookToAddId, ...project.bookIds]
+                      setProjects(projects.map((p) => (p.id === project.id ? { ...p, bookIds: nextIds, updatedAt: now } : p)))
+                      setBookToAddId('')
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+
               <div className="projects-books">
-                {books.length === 0 ? (
-                  <p className="projects-muted">No notebooks yet. Create one in Notebook mode.</p>
+                {projectBooks.length === 0 ? (
+                  <p className="projects-muted">Nothing added yet. Use “Add notebook” above.</p>
                 ) : (
-                  books.map((b) => {
-                    const checked = project.bookIds.includes(b.id)
-                    return (
-                      <label key={b.id} className="projects-book-row">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            const now = new Date().toISOString()
-                            const nextIds = checked ? project.bookIds.filter((id) => id !== b.id) : [b.id, ...project.bookIds]
-                            setProjects(projects.map((p) => (p.id === project.id ? { ...p, bookIds: nextIds, updatedAt: now } : p)))
-                          }}
-                        />
-                        <span>{b.name}</span>
+                  projectBooks.map((b) => (
+                    <div key={b.id} className="projects-book-row">
+                      <span className="projects-book-name">{b.name || 'Untitled Notebook'}</span>
+                      <div className="projects-book-actions">
                         <button type="button" className="projects-open" onClick={() => openNotebook(b.id)}>
                           Open
                         </button>
-                      </label>
-                    )
-                  })
+                        <button
+                          type="button"
+                          className="projects-remove"
+                          onClick={() => {
+                            const now = new Date().toISOString()
+                            const nextIds = project.bookIds.filter((id) => id !== b.id)
+                            setProjects(projects.map((p) => (p.id === project.id ? { ...p, bookIds: nextIds, updatedAt: now } : p)))
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             </div>

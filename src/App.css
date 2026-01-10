@@ -484,6 +484,7 @@
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .pages-sidebar {
@@ -609,6 +610,7 @@
   flex-direction: column;
   background-color: var(--bg-secondary);
   overflow: auto;
+  min-width: 0;
 }
 
 .editor-header {
@@ -701,6 +703,28 @@
   gap: 0.5rem;
 }
 
+.projects-add {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.projects-add-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 240px;
+}
+
+.projects-add-label select {
+  width: 100%;
+}
+
 .projects-book-row {
   display: flex;
   gap: 0.75rem;
@@ -712,9 +736,29 @@
   background-color: var(--bg-secondary);
 }
 
-.projects-book-row span {
+.projects-book-name {
   flex: 1;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.projects-book-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.projects-remove {
+  color: #c74040;
+  border-color: #c74040;
+}
+
+.projects-remove:hover {
+  background-color: #fff5f5;
+  border-color: #a03030;
 }
 
 .projects-open {
