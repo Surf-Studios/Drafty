@@ -1,0 +1,188 @@
+.settingspage-container {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  padding: 2rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.settingspage-card {
+  width: 100%;
+  max-width: 900px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.settingspage-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1rem;
+}
+
+.settingspage-title {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.settingspage-title svg {
+  color: var(--accent-color);
+}
+
+.settingspage-title h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  color: var(--text-primary);
+}
+
+.settingspage-title p {
+  margin: 0.15rem 0 0;
+  color: var(--text-secondary);
+}
+
+.settingspage-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.settingspage-actions .logout {
+  color: #c74040;
+  border-color: #c74040;
+}
+
+.settingspage-actions .logout:hover {
+  background-color: #fff5f5;
+  border-color: #a03030;
+}
+
+.settingspage-section {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settingspage-section:last-child {
+  border-bottom: none;
+}
+
+.settingspage-section h3 {
+  margin: 0 0 0.75rem;
+  color: var(--text-primary);
+}
+
+.settingspage-muted {
+  color: var(--text-tertiary);
+  margin: -0.35rem 0 0.75rem;
+}
+
+.settingspage-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.75rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.settingspage-row .label {
+  color: var(--text-secondary);
+}
+
+.settingspage-row .value {
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settingspage-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.settingspage-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.settingspage-controls select {
+  padding: 0.45rem 0.6rem;
+}
+
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.file-card {
+  padding: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background-color: var(--bg-primary);
+}
+
+.file-card-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  text-transform: capitalize;
+}
+
+.file-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.file-import {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5em 1em;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.95em;
+  font-weight: 500;
+}
+
+.file-import:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--accent-color);
+}
+
+.file-import input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.danger {
+  color: #c74040;
+  border-color: #c74040;
+}
+
+.danger:hover {
+  background-color: #fff5f5;
+  border-color: #a03030;
+}

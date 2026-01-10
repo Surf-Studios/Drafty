@@ -1,23 +1,19 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import React, { useState, useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from './useAuth'
 import { Dashboard } from './Dashboard'
-import { themes, applyTheme, getThemeNames } from './themes'
-import { 
-  EditIcon, 
-  TrashIcon, 
-  BookIcon, 
-  FlashcardsIcon, 
-  WhiteboardIcon, 
-  StudyIcon, 
-  SettingsIcon, 
-  LogoutIcon,
-  PencilIcon,
-  DashboardIcon
-} from './icons'
+import { applyTheme } from './themes'
+import { TrashIcon, BookIcon, FlashcardsIcon, WhiteboardIcon, StudyIcon, SettingsIcon, LogoutIcon, DashboardIcon } from './icons'
+import type { Book, Flashcard, Page, Project } from './models'
+import { DEFAULT_FONT_FAMILY } from './utils/color'
+import { FlashcardsPage } from './pages/FlashcardsPage'
+import { NotebookPage } from './pages/NotebookPage'
+import { ProjectsPage } from './pages/ProjectsPage'
+import { StudyPage } from './pages/StudyPage'
+import { WhiteboardPage } from './pages/WhiteboardPage'
 import './App.css'
 
-interface Note {
+interface LegacyNote {
   id: string
   title: string
   content: string
@@ -26,83 +22,106 @@ interface Note {
   format?: string
 }
 
-type Mode = 'dashboard' | 'notebook' | 'flashcards' | 'whiteboard' | 'study' | 'settings'
+type Mode = 'dashboard' | 'projects' | 'notebook' | 'flashcards' | 'whiteboard' | 'study'
 
 const DEFAULT_TEXT_COLOR = '#cdd6f4'
 const DEFAULT_FONT_SIZE = '16'
 
 function App() {
   const { user, logout } = useAuth()
-  const [notes, setNotes] = useState<Note[]>([])
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+  const [books, setBooks] = useState<Book[]>([])
+  const [selectedBookId, setSelectedBookId] = useState<string | null>(null)
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [currentMode, setCurrentMode] = useState<Mode>('dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [currentTheme, setCurrentTheme] = useState('mocha')
-  const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark')
-  const [accentColor, setAccentColor] = useState<string | null>(null)
   const [textColor, setTextColor] = useState(DEFAULT_TEXT_COLOR)
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE)
-  const [flashcards, setFlashcards] = useState<any[]>([])
+  const [fontFamily, setFontFamily] = useState(DEFAULT_FONT_FAMILY)
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([])
 
-  // Load notes from localStorage when user changes
+  // Load documents from localStorage when user changes (and migrate legacy notes -> books)
   useEffect(() => {
     if (!user) {
-      setNotes([])
-      setSelectedNoteId(null)
+      setBooks([])
+      setSelectedBookId(null)
+      setSelectedPageId(null)
+      setProjects([])
+      setSelectedProjectId(null)
+      setFlashcards([])
       return
     }
 
-    const savedNotes = localStorage.getItem(`drafty-notes-${user.uid}`)
-    if (savedNotes) {
+    const booksKey = `drafty-books-${user.uid}`
+    const legacyNotesKey = `drafty-notes-${user.uid}`
+    const projectsKey = `drafty-projects-${user.uid}`
+    const flashcardsKey = `drafty-flashcards-${user.uid}`
+
+    const loadJson = <T,>(key: string, fallback: T): T => {
+      const raw = localStorage.getItem(key)
+      if (!raw) return fallback
       try {
-        const parsedNotes = JSON.parse(savedNotes)
-        setNotes(parsedNotes)
-        setSelectedNoteId(parsedNotes.length > 0 ? parsedNotes[0].id : null)
+        return JSON.parse(raw) as T
       } catch (e) {
-        console.error('Failed to load notes:', e)
-        setNotes([])
-        setSelectedNoteId(null)
+        console.error('Failed to parse storage key:', key, e)
+        return fallback
       }
-    } else {
-      setNotes([])
-      setSelectedNoteId(null)
     }
+
+    let loadedBooks = loadJson<Book[]>(booksKey, [])
+
+    // Migrate legacy notes only if no books exist yet
+    if (loadedBooks.length === 0) {
+      const legacyNotes = loadJson<LegacyNote[]>(legacyNotesKey, [])
+      if (legacyNotes.length > 0) {
+        loadedBooks = legacyNotes.map((n) => {
+          const now = new Date().toISOString()
+          const page: Page = {
+            id: `${n.id}-p1`,
+            name: 'Page 1',
+            content: n.content || '',
+            createdAt: n.createdAt || now,
+            updatedAt: n.updatedAt || now,
+          }
+          return {
+            id: n.id,
+            name: n.title || 'Untitled Book',
+            pages: [page],
+            createdAt: n.createdAt || now,
+            updatedAt: n.updatedAt || now,
+          }
+        })
+        localStorage.setItem(booksKey, JSON.stringify(loadedBooks))
+      }
+    }
+
+    const loadedProjects = loadJson<Project[]>(projectsKey, [])
+    const loadedFlashcards = loadJson<Flashcard[]>(flashcardsKey, [])
+
+    setBooks(loadedBooks)
+    setSelectedBookId(loadedBooks.length > 0 ? loadedBooks[0].id : null)
+    setSelectedPageId(loadedBooks.length > 0 && loadedBooks[0].pages.length > 0 ? loadedBooks[0].pages[0].id : null)
+    setProjects(loadedProjects)
+    setSelectedProjectId(loadedProjects.length > 0 ? loadedProjects[0].id : null)
+    setFlashcards(loadedFlashcards)
   }, [user])
 
   // Load and apply theme
   useEffect(() => {
     const savedTheme = localStorage.getItem('drafty-theme') || 'mocha'
-    setCurrentTheme(savedTheme)
     const savedMode = (localStorage.getItem('drafty-theme-mode') as 'dark' | 'light') || 'dark'
     const savedAccent = localStorage.getItem('drafty-accent') || null
-    setThemeMode(savedMode)
-    setAccentColor(savedAccent)
     applyTheme(savedTheme, savedMode, savedAccent)
     
     // Load text formatting preferences
     const savedTextColor = localStorage.getItem('drafty-text-color') || DEFAULT_TEXT_COLOR
     const savedFontSize = localStorage.getItem('drafty-font-size') || DEFAULT_FONT_SIZE
+    const savedFontFamily = localStorage.getItem('drafty-font-family') || DEFAULT_FONT_FAMILY
     setTextColor(savedTextColor)
     setFontSize(savedFontSize)
+    setFontFamily(savedFontFamily)
   }, [])
-
-  const handleThemeChange = (theme: string) => {
-    setCurrentTheme(theme)
-    applyTheme(theme, themeMode, accentColor)
-    localStorage.setItem('drafty-theme', theme)
-  }
-
-  const handleThemeModeChange = (mode: 'dark' | 'light') => {
-    setThemeMode(mode)
-    applyTheme(currentTheme, mode, accentColor)
-    localStorage.setItem('drafty-theme-mode', mode)
-  }
-
-  const handleAccentChange = (color: string) => {
-    setAccentColor(color)
-    applyTheme(currentTheme, themeMode, color)
-    localStorage.setItem('drafty-accent', color)
-  }
 
   const handleTextColorChange = (color: string) => {
     setTextColor(color)
@@ -114,80 +133,129 @@ function App() {
     localStorage.setItem('drafty-font-size', size)
   }
 
-  // Save notes to localStorage whenever they change (user-specific)
+  const handleFontFamilyChange = (family: string) => {
+    setFontFamily(family)
+    localStorage.setItem('drafty-font-family', family)
+  }
+
+  // Save documents to localStorage whenever they change (user-specific)
   useEffect(() => {
-    if (user && notes.length > 0) {
-      localStorage.setItem(`drafty-notes-${user.uid}`, JSON.stringify(notes))
-    }
-  }, [notes, user])
+    if (!user) return
+    localStorage.setItem(`drafty-books-${user.uid}`, JSON.stringify(books))
+  }, [books, user])
 
-  const createNewNote = () => {
-    const newNote: Note = {
-      id: Date.now().toString(),
-      title: 'Untitled Note',
+  useEffect(() => {
+    if (!user) return
+    localStorage.setItem(`drafty-projects-${user.uid}`, JSON.stringify(projects))
+  }, [projects, user])
+
+  useEffect(() => {
+    if (!user) return
+    localStorage.setItem(`drafty-flashcards-${user.uid}`, JSON.stringify(flashcards))
+  }, [flashcards, user])
+
+  const createNewBook = () => {
+    const now = new Date().toISOString()
+    const bookId = Date.now().toString()
+    const firstPage: Page = {
+      id: `${bookId}-p1`,
+      name: 'Page 1',
       content: '',
-      format: 'normal',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     }
-    setNotes([newNote, ...notes])
-    setSelectedNoteId(newNote.id)
-  }
-
-  const updateNote = (id: string, updates: Partial<Note>) => {
-    setNotes(notes.map(note =>
-      note.id === id
-        ? { ...note, ...updates, updatedAt: new Date().toISOString() }
-        : note
-    ))
-  }
-
-  const deleteNote = (id: string) => {
-    const noteIndex = notes.findIndex(n => n.id === id)
-    const newNotes = notes.filter(note => note.id !== id)
-    setNotes(newNotes)
-    
-    if (selectedNoteId === id) {
-      if (newNotes.length > 0) {
-        const newSelectedIndex = Math.min(noteIndex, newNotes.length - 1)
-        setSelectedNoteId(newNotes[newSelectedIndex].id)
-      } else {
-        setSelectedNoteId(null)
-      }
+    const newBook: Book = {
+      id: bookId,
+      name: 'Untitled Book',
+      pages: [firstPage],
+      createdAt: now,
+      updatedAt: now,
     }
+    setBooks([newBook, ...books])
+    setSelectedBookId(newBook.id)
+    setSelectedPageId(firstPage.id)
   }
 
-  const selectedNote = notes.find(note => note.id === selectedNoteId)
+  const updateBook = (bookId: string, updates: Partial<Omit<Book, 'id' | 'pages'>> & { pages?: Page[] }) => {
+    const now = new Date().toISOString()
+    setBooks(
+      books.map((b) =>
+        b.id === bookId ? { ...b, ...updates, updatedAt: now } : b
+      )
+    )
+  }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffTime = Math.abs(now.getTime() - date.getTime())
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+  const deleteBook = (bookId: string) => {
+    const idx = books.findIndex((b) => b.id === bookId)
+    const newBooks = books.filter((b) => b.id !== bookId)
+    setBooks(newBooks)
 
-    if (diffDays === 0) {
-      return 'Today'
-    } else if (diffDays === 1) {
-      return 'Yesterday'
-    } else if (diffDays < 7) {
-      return `${diffDays} days ago`
-    } else {
-      return date.toLocaleDateString()
+    // remove from projects
+    setProjects(projects.map((p) => ({ ...p, bookIds: p.bookIds.filter((id) => id !== bookId) })))
+
+    // remove related flashcards
+    setFlashcards(flashcards.filter((c) => c.bookId !== bookId))
+
+    if (selectedBookId === bookId) {
+      const next = newBooks.length > 0 ? newBooks[Math.min(idx, newBooks.length - 1)] : null
+      setSelectedBookId(next ? next.id : null)
+      setSelectedPageId(next && next.pages.length > 0 ? next.pages[0].id : null)
     }
   }
+
+  const createNewPage = (bookId: string) => {
+    const now = new Date().toISOString()
+    const pageId = `${bookId}-p${Date.now().toString()}`
+    const newPage: Page = {
+      id: pageId,
+      name: 'Untitled Page',
+      content: '',
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    const book = books.find((b) => b.id === bookId)
+    if (!book) return
+    updateBook(bookId, { pages: [newPage, ...book.pages] })
+    setSelectedPageId(pageId)
+  }
+
+  const updatePage = (bookId: string, pageId: string, updates: Partial<Omit<Page, 'id'>>) => {
+    const now = new Date().toISOString()
+    const book = books.find((b) => b.id === bookId)
+    if (!book) return
+    const pages = book.pages.map((p) => (p.id === pageId ? { ...p, ...updates, updatedAt: now } : p))
+    updateBook(bookId, { pages })
+  }
+
+  const deletePage = (bookId: string, pageId: string) => {
+    const book = books.find((b) => b.id === bookId)
+    if (!book) return
+    const idx = book.pages.findIndex((p) => p.id === pageId)
+    const newPages = book.pages.filter((p) => p.id !== pageId)
+    updateBook(bookId, { pages: newPages })
+
+    if (selectedPageId === pageId) {
+      const next = newPages.length > 0 ? newPages[Math.min(idx, newPages.length - 1)] : null
+      setSelectedPageId(next ? next.id : null)
+    }
+  }
+
+  const selectedBook = books.find((b) => b.id === selectedBookId)
+  const selectedPage = selectedBook?.pages.find((p) => p.id === selectedPageId) || null
 
   const handleModeChange = (mode: Mode) => {
-    // Auto-create a journal note when entering notebook if none exists
-    if (mode === 'notebook' && !selectedNoteId) {
-      createNewNote()
+    // Auto-create a book when entering notebook if none exists
+    if (mode === 'notebook' && !selectedBookId) {
+      createNewBook()
     }
     setCurrentMode(mode)
     setMenuOpen(false)
   }
 
   const handleSettings = () => {
-    // Open settings as its own page
-    handleModeChange('settings')
+    setMenuOpen(false)
+    window.location.hash = '#settings'
   }
 
   const handleLogout = async () => {
@@ -204,14 +272,50 @@ function App() {
     switch (currentMode) {
       case 'dashboard':
         return renderDashboard()
+      case 'projects':
+        return (
+          <ProjectsPage
+            books={books}
+            projects={projects}
+            setProjects={setProjects}
+            selectedProjectId={selectedProjectId}
+            setSelectedProjectId={setSelectedProjectId}
+            openNotebook={(bookId) => {
+              setSelectedBookId(bookId)
+              const book = books.find((b) => b.id === bookId) || null
+              setSelectedPageId(book && book.pages.length > 0 ? book.pages[0].id : null)
+              handleModeChange('notebook')
+            }}
+          />
+        )
       case 'notebook':
-        return renderNotebook()
+        return (
+          <NotebookPage
+            userEmail={user?.email ?? null}
+            books={books}
+            selectedBookId={selectedBookId}
+            setSelectedBookId={setSelectedBookId}
+            selectedPageId={selectedPageId}
+            setSelectedPageId={setSelectedPageId}
+            createNewBook={createNewBook}
+            createNewPage={createNewPage}
+            updateBook={updateBook}
+            updatePage={updatePage}
+            deletePage={deletePage}
+            textColor={textColor}
+            setTextColor={handleTextColorChange}
+            fontSize={fontSize}
+            setFontSize={handleFontSizeChange}
+            fontFamily={fontFamily}
+            setFontFamily={handleFontFamilyChange}
+          />
+        )
       case 'flashcards':
-        return renderFlashcards()
+        return <FlashcardsPage user={user ? { uid: user.uid } : null} books={books} flashcards={flashcards} setFlashcards={setFlashcards} />
       case 'whiteboard':
-        return renderWhiteboard()
+        return <WhiteboardPage user={user ? { uid: user.uid } : null} />
       case 'study':
-        return renderStudy()
+        return <StudyPage flashcards={flashcards} />
       default:
         return renderDashboard()
     }
@@ -221,200 +325,6 @@ function App() {
     <Dashboard onModeSelect={(mode) => handleModeChange(mode as Mode)} />
   )
 
-  const renderNotebook = () => (
-    <>
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <h1>Drafty</h1>
-          <p>Your thoughts, organized</p>
-          <button className="new-note-btn primary" onClick={createNewNote}>
-            <EditIcon size={16} /> New Note
-          </button>
-        </div>
-        <div className="notes-list">
-          {notes.map(note => (
-            <div
-              key={note.id}
-              className={`note-item ${selectedNoteId === note.id ? 'active' : ''}`}
-              onClick={() => setSelectedNoteId(note.id)}
-            >
-              <div className="note-item-title">{note.title || 'Untitled'}</div>
-              <div className="note-item-preview">
-                {note.content.substring(0, 60) || 'No content'}
-              </div>
-              <div className="note-item-date">{formatDate(note.updatedAt)}</div>
-            </div>
-          ))}
-        </div>
-        <div className="sidebar-footer">
-          <div className="user-info">
-            <span className="user-email">{user?.email}</span>
-          </div>
-        </div>
-      </aside>
-
-      <main className="editor-container">
-        {selectedNote ? (
-          <>
-            <div className="editor-header">
-              <div>{formatDate(selectedNote.updatedAt)}</div>
-              <div className="editor-actions">
-                <div className="text-formatting-toolbar">
-                  <label className="formatting-label">
-                    Color:
-                    <input
-                      type="color"
-                      value={textColor}
-                      onChange={(e) => handleTextColorChange(e.target.value)}
-                      className="color-picker"
-                    />
-                  </label>
-                  <label className="formatting-label">
-                    Font Size:
-                    <select
-                      value={fontSize}
-                      onChange={(e) => handleFontSizeChange(e.target.value)}
-                      className="font-size-select"
-                    >
-                      <option value="12">12px</option>
-                      <option value="14">14px</option>
-                      <option value="16">16px</option>
-                      <option value="18">18px</option>
-                      <option value="20">20px</option>
-                      <option value="24">24px</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div className="editor-content">
-              <input
-                type="text"
-                className="note-title-input"
-                value={selectedNote.title}
-                onChange={(e) => updateNote(selectedNote.id, { title: e.target.value })}
-                placeholder="Note title..."
-              />
-              <textarea
-                className="note-content-textarea"
-                value={selectedNote.content}
-                onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
-                placeholder="Start writing your note..."
-                style={{ color: textColor, fontSize: `${fontSize}px` }}
-              />
-            </div>
-          </>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <PencilIcon size={64} />
-            </div>
-            <h2>No Note Selected</h2>
-            <p>Create a new note or select one from the sidebar</p>
-          </div>
-        )}
-      </main>
-    </>
-  )
-
-  const renderFlashcards = () => (
-    <div className="mode-container">
-      <div className="mode-content">
-        <div className="mode-header">
-          <FlashcardsIcon size={48} />
-          <h2>Flashcards</h2>
-          <p>Create and study with flashcards</p>
-        </div>
-        <div className="mode-body">
-          <FlashcardsManager flashcards={flashcards} setFlashcards={setFlashcards} user={user} />
-        </div>
-      </div>
-    </div>
-  )
-
-  const renderWhiteboard = () => (
-    <div className="mode-container">
-      <div className="mode-content">
-        <div className="mode-header">
-          <WhiteboardIcon size={48} />
-          <h2>Whiteboard</h2>
-          <p>Draw and save sketches</p>
-        </div>
-        <div className="mode-body">
-          <Whiteboard user={user} />
-        </div>
-      </div>
-    </div>
-  )
-
-  const renderStudy = () => (
-    <div className="mode-container">
-      <div className="mode-content">
-        <div className="mode-header">
-          <StudyIcon size={48} />
-          <h2>Study & Revise</h2>
-          <p>Review your flashcards and revise effectively</p>
-        </div>
-        <div className="mode-body">
-          <StudyManager flashcards={flashcards} />
-        </div>
-      </div>
-    </div>
-  )
-
-  const renderSettings = () => (
-    <div className="mode-container">
-      <div className="mode-content settings-page">
-        <div className="mode-header">
-          <SettingsIcon size={48} />
-          <h2>Settings</h2>
-          <p>Account and appearance</p>
-        </div>
-        <div className="mode-body">
-          <div className="settings-section">
-            <h3>Account</h3>
-            <div className="setting-item">
-              <label>Email</label>
-              <div className="setting-value">{user?.email}</div>
-            </div>
-          </div>
-          <div className="settings-section">
-            <h3>Theme</h3>
-            <p className="settings-description">Choose from Catppuccin color themes</p>
-            <div className="theme-grid">
-              {getThemeNames().map((themeName) => (
-                <button
-                  key={themeName}
-                  className={`theme-option ${currentTheme === themeName ? 'active' : ''}`}
-                  onClick={() => handleThemeChange(themeName)}
-                  style={{
-                    backgroundColor: themes[themeName].colors.base,
-                    color: themes[themeName].colors.text,
-                    borderColor: currentTheme === themeName ? themes[themeName].colors.accent : 'transparent'
-                  }}
-                >
-                  {themes[themeName].name}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ marginTop: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: 8 }}>Mode</label>
-              <select value={themeMode} onChange={(e) => handleThemeModeChange(e.target.value as 'dark'|'light')}>
-                <option value="dark">Dark</option>
-                <option value="light">Light</option>
-              </select>
-            </div>
-
-            <div style={{ marginTop: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: 8 }}>Accent color</label>
-              <input type="color" value={accentColor || '#cba6f7'} onChange={(e) => handleAccentChange(e.target.value)} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
 
   return (
     <div className="app">
@@ -449,6 +359,13 @@ function App() {
                 Dashboard
               </button>
               <button 
+                className={`menu-item ${currentMode === 'projects' ? 'active' : ''}`}
+                onClick={() => handleModeChange('projects')}
+              >
+                <span className="menu-icon"><BookIcon size={20} /></span>
+                Projects
+              </button>
+              <button 
                 className={`menu-item ${currentMode === 'notebook' ? 'active' : ''}`}
                 onClick={() => handleModeChange('notebook')}
               >
@@ -477,20 +394,32 @@ function App() {
                 Study and Revise
               </button>
             </div>
-            {selectedNote && currentMode === 'notebook' && (
+            {selectedBook && currentMode === 'notebook' && (
               <>
                 <div className="menu-divider" />
                 <div className="menu-section">
                   <button 
                     className="menu-item delete" 
                     onClick={() => {
-                      deleteNote(selectedNote.id)
+                      deleteBook(selectedBook.id)
                       setMenuOpen(false)
                     }}
                   >
                     <span className="menu-icon"><TrashIcon size={20} /></span>
-                    Delete Note
+                    Delete Book
                   </button>
+                  {selectedPage && (
+                    <button
+                      className="menu-item delete"
+                      onClick={() => {
+                        deletePage(selectedBook.id, selectedPage.id)
+                        setMenuOpen(false)
+                      }}
+                    >
+                      <span className="menu-icon"><TrashIcon size={20} /></span>
+                      Delete Page
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -509,151 +438,9 @@ function App() {
         </>
       )}
 
-      {/* Settings handled as its own mode (page) */}
-      {currentMode === 'settings' ? renderSettings() : renderModeContent()}
+      {renderModeContent()}
     </div>
   )
 }
 
 export default App
-
-// --- Small inline components for flashcards, whiteboard, and study ---
-
-function FlashcardsManager({ flashcards, setFlashcards, user }: any) {
-  useEffect(() => {
-    if (!user) return
-    const saved = localStorage.getItem(`drafty-flashcards-${user.uid}`)
-    if (saved) setFlashcards(JSON.parse(saved))
-  }, [user])
-
-  useEffect(() => {
-    if (!user) return
-    localStorage.setItem(`drafty-flashcards-${user.uid}`, JSON.stringify(flashcards))
-  }, [flashcards, user])
-
-  const [front, setFront] = useState('')
-  const [back, setBack] = useState('')
-
-  const addCard = () => {
-    if (!front && !back) return
-    setFlashcards([{ id: Date.now().toString(), front, back, known: false }, ...flashcards])
-    setFront('')
-    setBack('')
-  }
-
-  return (
-    <div>
-      <div style={{ marginBottom: 12 }}>
-        <input placeholder="Front" value={front} onChange={(e) => setFront(e.target.value)} />
-        <input placeholder="Back" value={back} onChange={(e) => setBack(e.target.value)} />
-        <button onClick={addCard}>Add</button>
-      </div>
-      <div>
-        {flashcards.map((c: any) => (
-          <div key={c.id} style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-            <strong>{c.front}</strong>
-            <div style={{ color: '#666' }}>{c.back}</div>
-          </div>
-        ))}
-      </div>
-      <StudyManager flashcards={flashcards} />
-    </div>
-  )
-}
-
-function StudyManager({ flashcards }: any) {
-  const [index, setIndex] = useState(0)
-  const [showBack, setShowBack] = useState(false)
-
-  if (!flashcards || flashcards.length === 0) return <div>No flashcards yet.</div>
-
-  const card = flashcards[index % flashcards.length]
-
-  return (
-    <div>
-      <div style={{ padding: 16, border: '1px solid var(--border-color)', borderRadius: 8 }}>
-        <h3>{card.front}</h3>
-        {showBack && <p>{card.back}</p>}
-        <div style={{ marginTop: 8 }}>
-          <button onClick={() => setShowBack(!showBack)}>{showBack ? 'Hide' : 'Show'} Answer</button>
-          <button onClick={() => { setIndex(index + 1); setShowBack(false) }}>Next</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Whiteboard({ user }: any) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const [drawing, setDrawing] = useState(false)
-  const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    canvas.width = canvas.clientWidth * devicePixelRatio
-    canvas.height = canvas.clientHeight * devicePixelRatio
-    const context = canvas.getContext('2d')
-    if (!context) return
-    context.scale(devicePixelRatio, devicePixelRatio)
-    context.lineCap = 'round'
-    context.strokeStyle = '#000'
-    context.lineWidth = 2
-    setCtx(context)
-
-    // Load saved
-    if (user) {
-      const saved = localStorage.getItem(`drafty-whiteboard-${user.uid}`)
-      if (saved) {
-        const img = new Image()
-        img.onload = () => context.drawImage(img, 0, 0, canvas.clientWidth, canvas.clientHeight)
-        img.src = saved
-      }
-    }
-  }, [user])
-
-  const start = (e: any) => {
-    setDrawing(true)
-    const rect = (e.target as HTMLCanvasElement).getBoundingClientRect()
-    ctx?.beginPath()
-    ctx?.moveTo(e.clientX - rect.left, e.clientY - rect.top)
-  }
-
-  const move = (e: any) => {
-    if (!drawing) return
-    const rect = (e.target as HTMLCanvasElement).getBoundingClientRect()
-    ctx?.lineTo(e.clientX - rect.left, e.clientY - rect.top)
-    ctx?.stroke()
-  }
-
-  const end = () => {
-    setDrawing(false)
-    ctx?.closePath()
-  }
-
-  const clear = () => {
-    const canvas = canvasRef.current
-    if (!canvas || !ctx) return
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    if (user) localStorage.removeItem(`drafty-whiteboard-${user.uid}`)
-  }
-
-  const save = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const data = canvas.toDataURL()
-    if (user) localStorage.setItem(`drafty-whiteboard-${user.uid}`, data)
-  }
-
-  return (
-    <div>
-      <div style={{ marginBottom: 8 }}>
-        <button onClick={save}>Save</button>
-        <button onClick={clear}>Clear</button>
-      </div>
-      <div style={{ border: '1px solid var(--border-color)', borderRadius: 8 }}>
-        <canvas ref={canvasRef} style={{ width: '100%', height: 400 }} onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end} />
-      </div>
-    </div>
-  )
-}

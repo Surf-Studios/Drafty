@@ -6,11 +6,12 @@ import { AuthProvider } from './AuthContext'
 import { useAuth } from './useAuth'
 import { Auth } from './Auth'
 import { Homepage } from './Homepage'
+import { SettingsPage } from './SettingsPage'
 import App from './App.tsx'
 
 export function RootApp() {
   const { user, loading } = useAuth()
-  const [currentView, setCurrentView] = useState<'homepage' | 'auth' | 'app'>('homepage')
+  const [currentView, setCurrentView] = useState<'homepage' | 'auth' | 'app' | 'settings'>('homepage')
 
   // Determine which view to show based on user state and hash
   useEffect(() => {
@@ -18,6 +19,7 @@ export function RootApp() {
       const hash = window.location.hash
       
       if (user) {
+        if (hash === '#settings') return 'settings'
         return 'app'
       }
       
@@ -64,6 +66,10 @@ export function RootApp() {
 
   if (currentView === 'auth') {
     return <Auth />
+  }
+
+  if (currentView === 'settings') {
+    return <SettingsPage />
   }
 
   return <App />

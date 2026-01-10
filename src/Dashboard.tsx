@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DashboardIcon, NotebookIcon, FlashcardsIcon, WhiteboardIcon, StudyIcon } from './icons'
+import { DashboardIcon, NotebookIcon, FlashcardsIcon, WhiteboardIcon, StudyIcon, BookIcon } from './icons'
 import './Dashboard.css'
 
 interface DashboardProps {
@@ -10,6 +10,13 @@ export function Dashboard({ onModeSelect }: DashboardProps) {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
 
   const modes = [
+    {
+      id: 'projects',
+      name: 'Projects',
+      description: 'Group multiple notebooks for a class or goal',
+      icon: BookIcon,
+      color: '#89b4fa',
+    },
     {
       id: 'notebook',
       name: 'Notebook',
