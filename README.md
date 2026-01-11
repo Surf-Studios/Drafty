@@ -57,12 +57,6 @@ Open http://localhost:5173.
 npm run build
 ```
 
-### Lint
-
-```bash
-npm run lint
-```
-
 ## Firebase setup
 
 This project uses Firebase for authentication. If you want to point Drafty to your own Firebase project, create a `.env` in the project root and provide the `VITE_FIREBASE_*` values (see the existing Firebase setup in the repo for the exact variable names).

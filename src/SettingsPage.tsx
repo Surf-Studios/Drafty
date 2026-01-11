@@ -11,6 +11,18 @@ const DEFAULT_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", Robo
 
 type DataKind = 'books' | 'projects' | 'flashcards' | 'whiteboard'
 
+function safeJsonParse(text: string): unknown {
+  return JSON.parse(text) as unknown
+}
+
+function tryParseJson(text: string): unknown | null {
+  try {
+    return safeJsonParse(text)
+  } catch {
+    return null
+  }
+}
+
 function downloadJson(filename: string, data: unknown) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -23,7 +35,11 @@ function downloadJson(filename: string, data: unknown) {
 
 async function readJsonFile(file: File): Promise<any> {
   const text = await file.text()
-  return JSON.parse(text)
+  const parsed = tryParseJson(text)
+  if (parsed === null) {
+    throw new Error('Invalid JSON')
+  }
+  return parsed
 }
 
 export function SettingsPage() {
@@ -104,7 +120,7 @@ export function SettingsPage() {
     const key = storageKeys[kind]
     if (!key) return
     const raw = localStorage.getItem(key)
-    const parsed = raw ? JSON.parse(raw) : []
+    const parsed = raw ? tryParseJson(raw) : []
     downloadJson(`drafty-${kind}-${user.uid}.json`, parsed)
   }
 
